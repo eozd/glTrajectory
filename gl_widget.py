@@ -1,4 +1,5 @@
 import sys
+import argparse
 import json
 import numpy as np
 import ctypes
@@ -313,6 +314,17 @@ class GLTrajectoryWidget(QOpenGLWidget):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Animate trajectory using GLTrajectoryWidget.")
+    requiredNamed = parser.add_argument_group('Required arguments')
+    requiredNamed.add_argument('-c', metavar='config_file', help="Configuration file path", required=True)
+    requiredNamed.add_argument('-d', metavar='data_file', help="Data file path", required=True)
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(-1)
+    args = parser.parse_args()
+    dataFile = args.d
+    configFile = args.c
+
     fmt = QSurfaceFormat()
     fmt.setProfile(QSurfaceFormat.CoreProfile)
     fmt.setMajorVersion(3)
@@ -324,8 +336,6 @@ if __name__ == '__main__':
     QSurfaceFormat.setDefaultFormat(fmt)
 
     # read data file
-    dataFile = sys.argv[1]
-    configFile = sys.argv[2]
     data = np.genfromtxt(dataFile, delimiter=',', dtype=str)
     data = np.char.replace(data, '[', '')
     data = np.char.replace(data, ']', '')
