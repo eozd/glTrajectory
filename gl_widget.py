@@ -15,6 +15,15 @@ from matrix_utils import (mul, lookAt, perspective, translate, rotate, cross)
 from loader import (loadOBJ, loadShaders, indexVBO)
 
 
+class GLObject():
+    """
+    An OpenGL 'object' that has its own vertex data, and which can be drawn onto
+    a QOpenGLWidget.
+    """
+    def __init__(self):
+        pass
+
+
 class GLTrajectoryWidget(QOpenGLWidget):
     """
     Animate a trajectory in 3D using OpenGL.
