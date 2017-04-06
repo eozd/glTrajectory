@@ -144,7 +144,7 @@ class GLTrajectoryWidget(QOpenGLWidget):
         # don't use texture for now
         self.vertexData = indexVBO(*loadOBJ(self.trajectoryObjFile))
         self.planeVertexData = indexVBO(*loadOBJ(self.planeObjFile))
-        self.trajectoryGLObject = GLObject(self.vertexData, self.materialDiffuseColor)
+        self.trajectoryGLObject = GLObject(self.vertexData, self.ballDiffuseColor)
         self.planeGLObject = GLObject(self.planeVertexData, self.planeDiffuseColor)
         self.initUniforms(self.programID)
 
@@ -181,8 +181,12 @@ class GLTrajectoryWidget(QOpenGLWidget):
         self.lightColor = np.array(confDic['lightColor'], dtype='float32')
         self.lightPower = confDic['lightPower']
         self.backgroundColor = confDic['backgroundColor']
-        self.materialDiffuseColor = np.array(
-            confDic['materialDiffuseColor'],
+        self.ballDiffuseColor = np.array(
+            confDic['ballDiffuseColor'],
+            dtype='float32'
+        )
+        self.planeDiffuseColor = np.array(
+            confDic['planeDiffuseColor'],
             dtype='float32'
         )
         self.materialAmbientColorCoeffs = np.array(
@@ -191,10 +195,6 @@ class GLTrajectoryWidget(QOpenGLWidget):
         )
         self.materialSpecularColor = np.array(
             confDic['materialSpecularColor'],
-            dtype='float32'
-        )
-        self.planeDiffuseColor = np.array(
-            confDic['planeDiffuseColor'],
             dtype='float32'
         )
         self.position = confDic['initialCameraPosition']
@@ -214,7 +214,6 @@ class GLTrajectoryWidget(QOpenGLWidget):
         glUniform3fv(self.lightPosWorldID, 1, self.lightPosWorld)
         glUniform3fv(self.lightColorID, 1, self.lightColor)
         glUniform1f(self.lightPowerID, self.lightPower)
-        glUniform3fv(self.materialDiffuseColorID, 1, self.materialDiffuseColor)
         glUniform3fv(self.materialAmbientColorCoeffsID, 1, self.materialAmbientColorCoeffs)
         glUniform3fv(self.materialSpecularColorID, 1, self.materialSpecularColor)
 
