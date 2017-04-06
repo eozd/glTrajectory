@@ -16,17 +16,20 @@ from loader import (loadOBJ, loadShaders, indexVBO)
 from definitions import GLVertexData
 
 
+modelVertexDictionary = {}
+
+
 class GLObject():
     """
     An OpenGL 'object' that has its own vertex data, and which can be drawn onto
     a QOpenGLWidget.
     """
-    def __init__(self, vertexData, color):
+    def __init__(self, modelName, color):
         """
         vertexData: GLVertexData object holding the vertex data of this GLObject.
         color: <r, g, b, a> color of the object as a numpy array.
         """
-        self.vertexData = vertexData
+        self.modelName = modelName
         self.color = color
         self.initBuffers()
 
@@ -35,18 +38,19 @@ class GLObject():
         Creates OpenGL buffers for storing vertex data.
         """
         glBindVertexArray(glGenVertexArrays(1))
+        vertexData = modelVertexDictionary[self.modelName]
         # vertex array (positions)
         self.vertexBuffer = glGenBuffers(1)
         glBindBuffer(GL_ARRAY_BUFFER, self.vertexBuffer)
-        glBufferData(GL_ARRAY_BUFFER, self.vertexData.vertices, GL_STATIC_DRAW)
+        glBufferData(GL_ARRAY_BUFFER, vertexData.vertices, GL_STATIC_DRAW)
         # normal array (normal vector of each triangle)
         self.normalBuffer = glGenBuffers(1)
         glBindBuffer(GL_ARRAY_BUFFER, self.normalBuffer)
-        glBufferData(GL_ARRAY_BUFFER, self.vertexData.normals, GL_STATIC_DRAW)
+        glBufferData(GL_ARRAY_BUFFER, vertexData.normals, GL_STATIC_DRAW)
         # index array (to be used for VBO indexing)
         self.elementBuffer = glGenBuffers(1)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.elementBuffer)
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, self.vertexData.indices, GL_STATIC_DRAW)
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, vertexData.indices, GL_STATIC_DRAW)
 
     def paint(self, M, V, P, matrixID, MID, colorID):
         """
@@ -58,6 +62,7 @@ class GLObject():
         matrixID: Uniform ID of MVP matrix in the vertex shader.
         MID: Uniform ID of M matrix in the vertex shader.
         """
+        vertexData = modelVertexDictionary[self.modelName]
         MVP = mul(P, mul(V, M))
         glUniformMatrix4fv(matrixID, 1, False, MVP)
         glUniformMatrix4fv(MID, 1, False, M)
@@ -87,7 +92,7 @@ class GLObject():
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.elementBuffer)
         glDrawElements(
             GL_TRIANGLES,
-            len(self.vertexData.indices),
+            len(vertexData.indices),
             GL_UNSIGNED_SHORT,
             ctypes.c_void_p(0),
         )
@@ -129,6 +134,7 @@ class GLTrajectoryWidget(QOpenGLWidget):
         self.time = QTime()
         self.time.start()
         self.data = data
+        self.circ_data = np.load('data/circular_movement.npy') + 20
         self.dataIndices = np.arange(1)
 
     def initializeGL(self):
@@ -146,12 +152,18 @@ class GLTrajectoryWidget(QOpenGLWidget):
         glEnable(GL_CULL_FACE)
         self.programID = loadShaders("shaders/vertex_shader.glsl", "shaders/fragment_shader.glsl")
         # don't use texture for now
+        modelVertexDictionary['ball'] = indexVBO(*loadOBJ(self.trajectoryObjFile))
+        modelVertexDictionary['box'] = indexVBO(*loadOBJ(self.boxObjFile))
         self.trajectoryGLObject = GLObject(
-            indexVBO(*loadOBJ(self.trajectoryObjFile)),
+            'ball',
             self.ballDiffuseColor
         )
+        self.t2 = GLObject(
+            'ball',
+            np.array([1.0, 0.0, 0.0, 1.0], dtype='float32')
+        )
         self.boxGLObject = GLObject(
-            indexVBO(*loadOBJ(self.boxObjFile)),
+            'box',
             self.boxDiffuseColor
         )
         self.initUniforms(self.programID)
@@ -170,10 +182,12 @@ class GLTrajectoryWidget(QOpenGLWidget):
             # TODO: Find a way to share required uniform IDs between all
             # GLObjects.
             self.trajectoryGLObject.paint(M, V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
+            M = translate(*(self.circ_data[i]))
+            self.t2.paint(M, V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
         M = mul(translate(0, 20, 0), scale(20, 10, 20))
         self.boxGLObject.paint(M, V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
         self.resetMouseInputs()
-        self.dataIndices += 1
+        self.dataIndices = (self.dataIndices + 1)%len(self.data)
 
     def configure(self, configFilepath):
         """
