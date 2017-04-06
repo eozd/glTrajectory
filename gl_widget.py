@@ -60,7 +60,7 @@ class GLObject():
         MVP = mul(P, mul(V, M))
         glUniformMatrix4fv(matrixID, 1, False, MVP)
         glUniformMatrix4fv(MID, 1, False, M)
-        glUniform3fv(colorID, 1, self.color)
+        glUniform4fv(colorID, 1, self.color)
         # vertex attribute array
         glEnableVertexAttribArray(0)
         glBindBuffer(GL_ARRAY_BUFFER, self.vertexBuffer)
@@ -142,7 +142,7 @@ class GLTrajectoryWidget(QOpenGLWidget):
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         # enable culling for better performance
-        glDisable(GL_CULL_FACE)
+        glEnable(GL_CULL_FACE)
         self.programID = loadShaders("shaders/vertex_shader.glsl", "shaders/fragment_shader.glsl")
         # don't use texture for now
         self.trajectoryGLObject = GLObject(

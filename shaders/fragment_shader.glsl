@@ -10,7 +10,7 @@ out vec4 color;
 uniform vec3 LightPosition_worldspace;
 uniform vec3 LightColor;
 uniform float LightPower;
-uniform vec3 MaterialDiffuseColor;
+uniform vec4 MaterialDiffuseColor;
 uniform vec3 MaterialAmbientColorCoeffs;
 uniform vec3 MaterialSpecularColor;
 
@@ -23,11 +23,13 @@ void main() {
 	vec3 R = reflect(-l, n);
 	float cosTheta = clamp(dot(n, l), 0, 1);
 	float cosAlpha = clamp(dot(E, R), 0, 1);
-	vec3 MaterialAmbientColor = MaterialAmbientColorCoeffs*MaterialDiffuseColor;
+	vec3 MaterialDiffuseColorRGB = MaterialDiffuseColor.xyz;
+	float MaterialDiffuseColorAlpha = MaterialDiffuseColor.w;
+	vec3 MaterialAmbientColor = MaterialAmbientColorCoeffs*MaterialDiffuseColorRGB;
 	float distance = length(LightPosition_worldspace - Position_worldspace);
 	color.xyz =
 		MaterialAmbientColor +
-		MaterialDiffuseColor*LightColor*LightPower*cosTheta/(distance*distance) +
+		MaterialDiffuseColorRGB*LightColor*LightPower*cosTheta/(distance*distance) +
 		MaterialSpecularColor*LightColor*LightPower*pow(cosAlpha, 5)/(distance*distance);
-	color.a = 1;
+	color.a = MaterialDiffuseColorAlpha;
 }

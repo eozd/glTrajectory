@@ -1,6 +1,6 @@
 {
 	"FPS" : 60,
-	"lightPosWorld" : [20.0, 30.0, 0.0],
+	"lightPosWorld" : [0.0, 30.0, 0.0],
 	"lightColor" : [1.0, 1.0, 1.0],
 	"lightPower" : 150.0,
 	"backgroundColor" : [0.2, 0.2, 0.2, 1],
