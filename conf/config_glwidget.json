@@ -14,5 +14,6 @@
 	"speed" : 20,
 	"mouseSpeed" : 0.3,
 	"mouseWheelSpeed" : 5,
-	"objFile" : "models/sphere.obj"
+	"trajectoryObjFile" : "models/sphere.obj",
+	"planeObjFile" : "models/plane.obj"
 }
