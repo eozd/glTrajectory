@@ -21,11 +21,77 @@ class GLObject():
     An OpenGL 'object' that has its own vertex data, and which can be drawn onto
     a QOpenGLWidget.
     """
-    def __init__(self, vertexData):
+    def __init__(self, vertexData, color):
         """
         vertexData: GLVertexData object holding the vertex data of this GLObject.
         """
-        pass
+        self.vertexData = vertexData
+        self.color = color
+        self.initBuffers()
+
+    def initBuffers(self):
+        """
+        Creates OpenGL buffers for storing vertex data.
+        """
+        glBindVertexArray(glGenVertexArrays(1))
+        # vertex array (positions)
+        self.vertexBuffer = glGenBuffers(1)
+        glBindBuffer(GL_ARRAY_BUFFER, self.vertexBuffer)
+        glBufferData(GL_ARRAY_BUFFER, self.vertexData.vertices, GL_STATIC_DRAW)
+        # normal array (normal vector of each triangle)
+        self.normalBuffer = glGenBuffers(1)
+        glBindBuffer(GL_ARRAY_BUFFER, self.normalBuffer)
+        glBufferData(GL_ARRAY_BUFFER, self.vertexData.normals, GL_STATIC_DRAW)
+        # index array (to be used for VBO indexing)
+        self.elementBuffer = glGenBuffers(1)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.elementBuffer)
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, self.vertexData.indices, GL_STATIC_DRAW)
+
+    def paint(self, M, V, P, matrixID, MID, colorID):
+        """
+        Paint GLObject using the transformations given.
+
+        M: Model matrix.
+        V: View matrix.
+        P: Projection matrix.
+        matrixID: Uniform ID of MVP matrix in the vertex shader.
+        MID: Uniform ID of M matrix in the vertex shader.
+        """
+        MVP = mul(P, mul(V, M))
+        glUniformMatrix4fv(matrixID, 1, False, MVP)
+        glUniformMatrix4fv(MID, 1, False, M)
+        glUniform3fv(colorID, 1, self.color)
+        # vertex attribute array
+        glEnableVertexAttribArray(0)
+        glBindBuffer(GL_ARRAY_BUFFER, self.vertexBuffer)
+        glVertexAttribPointer(
+            0,                   # must match the layout id in the shader
+            3,                   # size
+            GL_FLOAT,            # data type
+            GL_FALSE,            # normalized?
+            0,                   # stride. offset in between
+            ctypes.c_void_p(0),  # offset to the beginning
+        )
+        # normal coordinates attribute array
+        glEnableVertexAttribArray(1)
+        glBindBuffer(GL_ARRAY_BUFFER, self.normalBuffer)
+        glVertexAttribPointer(
+            1,
+            3,
+            GL_FLOAT,
+            GL_FALSE,
+            0,
+            ctypes.c_void_p(0),
+        )
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.elementBuffer)
+        glDrawElements(
+            GL_TRIANGLES,
+            len(self.vertexData.indices),
+            GL_UNSIGNED_SHORT,
+            ctypes.c_void_p(0),
+        )
+        glDisableVertexAttribArray(0)
+        glDisableVertexAttribArray(1)
 
 
 class GLTrajectoryWidget(QOpenGLWidget):
@@ -73,13 +139,14 @@ class GLTrajectoryWidget(QOpenGLWidget):
         glEnable(GL_DEPTH_TEST)
         glDepthFunc(GL_LESS)
         # enable culling for better performance
-        glEnable(GL_CULL_FACE)
+        glDisable(GL_CULL_FACE)
         self.programID = loadShaders("shaders/vertex_shader.glsl", "shaders/fragment_shader.glsl")
         # don't use texture for now
         self.vertexData = indexVBO(*loadOBJ(self.trajectoryObjFile))
         self.planeVertexData = indexVBO(*loadOBJ(self.planeObjFile))
+        self.trajectoryGLObject = GLObject(self.vertexData, self.materialDiffuseColor)
+        self.planeGLObject = GLObject(self.planeVertexData, self.planeDiffuseColor)
         self.initUniforms(self.programID)
-        self.initBuffers()
 
     def paintGL(self):
         """
@@ -92,40 +159,11 @@ class GLTrajectoryWidget(QOpenGLWidget):
         glUniformMatrix4fv(self.VID, 1, False, V)
         for i in self.dataIndices:
             M = translate(*(self.data[i]*10))
-            MVP = mul(P, mul(V, M))
-            glUniformMatrix4fv(self.matrixID, 1, False, MVP)
-            glUniformMatrix4fv(self.MID, 1, False, M)
-            # vertex attribute array
-            glEnableVertexAttribArray(0)
-            glBindBuffer(GL_ARRAY_BUFFER, self.vertexBuffer)
-            glVertexAttribPointer(
-                0,                   # must match the layout id in the shader
-                3,                   # size
-                GL_FLOAT,            # data type
-                GL_FALSE,            # normalized?
-                0,                   # stride. offset in between
-                ctypes.c_void_p(0),  # offset to the beginning
-            )
-            # normal coordinates attribute array
-            glEnableVertexAttribArray(1)
-            glBindBuffer(GL_ARRAY_BUFFER, self.normalBuffer)
-            glVertexAttribPointer(
-                1,
-                3,
-                GL_FLOAT,
-                GL_FALSE,
-                0,
-                ctypes.c_void_p(0),
-            )
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.elementBuffer)
-            glDrawElements(
-                GL_TRIANGLES,
-                len(self.vertexData.indices),
-                GL_UNSIGNED_SHORT,
-                ctypes.c_void_p(0),
-            )
-        glDisableVertexAttribArray(0)
-        glDisableVertexAttribArray(1)
+            # TODO: Find a way to shared required uniform IDs between all
+            # GLObjects.
+            self.trajectoryGLObject.paint(M, V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
+            M = np.eye(4)
+            self.planeGLObject.paint(M, V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
         self.resetMouseInputs()
         self.dataIndices += 1
 
@@ -153,6 +191,10 @@ class GLTrajectoryWidget(QOpenGLWidget):
         )
         self.materialSpecularColor = np.array(
             confDic['materialSpecularColor'],
+            dtype='float32'
+        )
+        self.planeDiffuseColor = np.array(
+            confDic['planeDiffuseColor'],
             dtype='float32'
         )
         self.position = confDic['initialCameraPosition']
@@ -191,24 +233,6 @@ class GLTrajectoryWidget(QOpenGLWidget):
         self.materialDiffuseColorID = glGetUniformLocation(programID, "MaterialDiffuseColor")
         self.materialAmbientColorCoeffsID = glGetUniformLocation(programID, "MaterialAmbientColorCoeffs")
         self.materialSpecularColorID = glGetUniformLocation(programID, "MaterialSpecularColor")
-
-    def initBuffers(self):
-        """
-        Creates OpenGL buffers for storing vertex data.
-        """
-        glBindVertexArray(glGenVertexArrays(1))
-        # vertex array (positions)
-        self.vertexBuffer = glGenBuffers(1)
-        glBindBuffer(GL_ARRAY_BUFFER, self.vertexBuffer)
-        glBufferData(GL_ARRAY_BUFFER, self.vertexData.vertices, GL_STATIC_DRAW)
-        # normal array (normal vector of each triangle)
-        self.normalBuffer = glGenBuffers(1)
-        glBindBuffer(GL_ARRAY_BUFFER, self.normalBuffer)
-        glBufferData(GL_ARRAY_BUFFER, self.vertexData.normals, GL_STATIC_DRAW)
-        # index array (to be used for VBO indexing)
-        self.elementBuffer = glGenBuffers(1)
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.elementBuffer)
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, self.vertexData.indices, GL_STATIC_DRAW)
 
     def resetInputs(self):
         """
@@ -319,7 +343,7 @@ class GLTrajectoryWidget(QOpenGLWidget):
             self.fov,                    # fov
             self.width()/self.height(),  # aspect ratio
             0.1,                         # distance to near clipping plane
-            100,                         # distance to far clipping plane
+            200,                         # distance to far clipping plane
         )
         view = lookAt(
             self.position,               # camera position in world coordinates
