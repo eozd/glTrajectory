@@ -142,10 +142,14 @@ class GLTrajectoryWidget(QOpenGLWidget):
         glDisable(GL_CULL_FACE)
         self.programID = loadShaders("shaders/vertex_shader.glsl", "shaders/fragment_shader.glsl")
         # don't use texture for now
-        self.vertexData = indexVBO(*loadOBJ(self.trajectoryObjFile))
-        self.planeVertexData = indexVBO(*loadOBJ(self.planeObjFile))
-        self.trajectoryGLObject = GLObject(self.vertexData, self.ballDiffuseColor)
-        self.planeGLObject = GLObject(self.planeVertexData, self.planeDiffuseColor)
+        self.trajectoryGLObject = GLObject(
+            indexVBO(*loadOBJ(self.trajectoryObjFile)),
+            self.ballDiffuseColor
+        )
+        self.planeGLObject = GLObject(
+            indexVBO(*loadOBJ(self.planeObjFile)),
+            self.planeDiffuseColor
+        )
         self.initUniforms(self.programID)
 
     def paintGL(self):
