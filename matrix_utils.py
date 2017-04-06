@@ -31,7 +31,13 @@ def scale(cx, cy, cz):
     Creates a 4x4 scale matrix which when multiplied with a vector, scales
     the x, y, z coordinates by cx, cy, cz, respectively.
     """
-    return np.diag((cx, cy, cz, 1), dtype='float32')
+    return np.array(
+        [[cx, 0, 0, 0],
+         [0, cy, 0, 0],
+         [0, 0, cz, 0],
+         [0, 0, 0, 1]],
+        dtype='float32'
+    )
 
 
 def rotate(angle, axis):
