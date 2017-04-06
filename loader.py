@@ -3,6 +3,7 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
 from PIL import Image
+from definitions import GLVertexData
 
 
 def loadTextureBMP(filepath):
@@ -157,16 +158,9 @@ def indexVBO(vertices, uvs=None, vns=None):
 
     Outputs
     --------------
-    indices: Numpy array of size N, containing an index to the accompanying data
-    arrays.
-
-    indexed_vertices: Numpy array of size 3*N. Data is stored in the format
-    (x, y, z)
-
-    indexed_uvs: Numpy array of size 2*N containing the u, v coordinates.
-
-    indexed_normals: Numpy array of size 3*N containing x, y, z coordinates of
-    normal of each vertex.
+    vertexData: GLVertexData object holding the indices, indexedVertices,
+    indexedUVs, indexedNormals of the input vertex data. All the data returned
+    in the vertexData object is stored in numpy arrays.
 
     Complexity
     --------------
@@ -264,4 +258,9 @@ def indexVBO(vertices, uvs=None, vns=None):
         indexed_vns = np.trim_zeros(indexed_vns)
     except TypeError:
         pass
-    return indices, indexed_vertices, indexed_uvs, indexed_vns
+    return GLVertexData(
+        indices=indices,
+        vertices=indexed_vertices,
+        uvCoords=indexed_uvs,
+        normals=indexed_vns
+    )

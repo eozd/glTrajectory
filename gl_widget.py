@@ -13,6 +13,7 @@ from OpenGL.GLUT import *
 
 from matrix_utils import (mul, lookAt, perspective, translate, rotate, cross)
 from loader import (loadOBJ, loadShaders, indexVBO)
+from definitions import GLVertexData
 
 
 class GLObject():
@@ -20,7 +21,10 @@ class GLObject():
     An OpenGL 'object' that has its own vertex data, and which can be drawn onto
     a QOpenGLWidget.
     """
-    def __init__(self):
+    def __init__(self, vertexData):
+        """
+        vertexData: GLVertexData object holding the vertex data of this GLObject.
+        """
         pass
 
 
@@ -46,7 +50,7 @@ class GLTrajectoryWidget(QOpenGLWidget):
         self.setMinimumSize(width, height)
         self.setFocusPolicy(Qt.ClickFocus)
         self.setMouseTracking(True)
-        self.lastPos = QPoint(width/2, height/2)
+        self.lastPos = QPoint(width/2, height/2)  # last cursor pos
         self.cursorType = self.cursor()
         self.clearFocus()
         self.resetInputs()
@@ -71,9 +75,11 @@ class GLTrajectoryWidget(QOpenGLWidget):
         # enable culling for better performance
         glEnable(GL_CULL_FACE)
         self.programID = loadShaders("shaders/vertex_shader.glsl", "shaders/fragment_shader.glsl")
-        self.indices, vertices, _, normals = indexVBO(*loadOBJ(self.objFile))
+        # don't use texture for now
+        self.vertexData = indexVBO(*loadOBJ(self.trajectoryObjFile))
+        self.planeVertexData = indexVBO(*loadOBJ(self.planeObjFile))
         self.initUniforms(self.programID)
-        self.initBuffers(vertices, normals)
+        self.initBuffers()
 
     def paintGL(self):
         """
@@ -114,7 +120,7 @@ class GLTrajectoryWidget(QOpenGLWidget):
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.elementBuffer)
             glDrawElements(
                 GL_TRIANGLES,
-                len(self.indices),
+                len(self.vertexData.indices),
                 GL_UNSIGNED_SHORT,
                 ctypes.c_void_p(0),
             )
@@ -156,7 +162,8 @@ class GLTrajectoryWidget(QOpenGLWidget):
         self.speed = confDic['speed']
         self.mouseSpeed = confDic['mouseSpeed']
         self.mouseWheelSpeed = confDic['mouseWheelSpeed']
-        self.objFile = confDic['objFile']
+        self.trajectoryObjFile = confDic['trajectoryObjFile']
+        self.planeObjFile = confDic['planeObjFile']
 
     def setConstUniform(self):
         """
@@ -185,7 +192,7 @@ class GLTrajectoryWidget(QOpenGLWidget):
         self.materialAmbientColorCoeffsID = glGetUniformLocation(programID, "MaterialAmbientColorCoeffs")
         self.materialSpecularColorID = glGetUniformLocation(programID, "MaterialSpecularColor")
 
-    def initBuffers(self, vertices, normals):
+    def initBuffers(self):
         """
         Creates OpenGL buffers for storing vertex data.
         """
@@ -193,15 +200,15 @@ class GLTrajectoryWidget(QOpenGLWidget):
         # vertex array (positions)
         self.vertexBuffer = glGenBuffers(1)
         glBindBuffer(GL_ARRAY_BUFFER, self.vertexBuffer)
-        glBufferData(GL_ARRAY_BUFFER, vertices, GL_STATIC_DRAW)
+        glBufferData(GL_ARRAY_BUFFER, self.vertexData.vertices, GL_STATIC_DRAW)
         # normal array (normal vector of each triangle)
         self.normalBuffer = glGenBuffers(1)
         glBindBuffer(GL_ARRAY_BUFFER, self.normalBuffer)
-        glBufferData(GL_ARRAY_BUFFER, normals, GL_STATIC_DRAW)
+        glBufferData(GL_ARRAY_BUFFER, self.vertexData.normals, GL_STATIC_DRAW)
         # index array (to be used for VBO indexing)
         self.elementBuffer = glGenBuffers(1)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.elementBuffer)
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, self.indices, GL_STATIC_DRAW)
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, self.vertexData.indices, GL_STATIC_DRAW)
 
     def resetInputs(self):
         """
