@@ -24,6 +24,7 @@ class GLObject():
     def __init__(self, vertexData, color):
         """
         vertexData: GLVertexData object holding the vertex data of this GLObject.
+        color: <r, g, b, a> color of the object as a numpy array.
         """
         self.vertexData = vertexData
         self.color = color
@@ -166,11 +167,11 @@ class GLTrajectoryWidget(QOpenGLWidget):
         glUniformMatrix4fv(self.VID, 1, False, V)
         for i in self.dataIndices:
             M = translate(*(self.data[i]*10))
-            # TODO: Find a way to shared required uniform IDs between all
+            # TODO: Find a way to share required uniform IDs between all
             # GLObjects.
             self.trajectoryGLObject.paint(M, V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
-            M = scale(20, 10, 20)
-            self.boxGLObject.paint(M, V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
+        M = mul(translate(0, 20, 0), scale(20, 10, 20))
+        self.boxGLObject.paint(M, V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
         self.resetMouseInputs()
         self.dataIndices += 1
 
