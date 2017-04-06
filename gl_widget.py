@@ -11,7 +11,7 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
 
-from matrix_utils import (mul, lookAt, perspective, translate, rotate, cross)
+from matrix_utils import (mul, lookAt, perspective, translate, rotate, cross, scale)
 from loader import (loadOBJ, loadShaders, indexVBO)
 from definitions import GLVertexData
 
@@ -166,7 +166,7 @@ class GLTrajectoryWidget(QOpenGLWidget):
             # TODO: Find a way to shared required uniform IDs between all
             # GLObjects.
             self.trajectoryGLObject.paint(M, V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
-            M = np.eye(4)
+            M = scale(20, 10, 20)
             self.planeGLObject.paint(M, V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
         self.resetMouseInputs()
         self.dataIndices += 1
