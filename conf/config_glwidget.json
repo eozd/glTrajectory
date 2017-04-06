@@ -6,8 +6,8 @@
 	"backgroundColor" : [0.2, 0.2, 0.2, 1],
 	"materialAmbientColorCoeffs" : [0.2, 0.2, 0.2],
 	"materialSpecularColor" : [0.3, 0.3, 0.3],
-	"ballDiffuseColor" : [1.0, 0.0, 0.0],
-	"planeDiffuseColor" : [0.0, 0.0, 1.0],
+	"ballDiffuseColor" : [1.0, 0.0, 0.0, 1.0],
+	"boxDiffuseColor" : [0.0, 0.0, 1.0, 0.3],
 	"initialCameraPosition" : [0.0, 30.0, 30.0],
 	"initialHorzAngle" : 135.0,
 	"initialVertAngle" : -10.0,
@@ -16,5 +16,5 @@
 	"mouseSpeed" : 0.3,
 	"mouseWheelSpeed" : 5,
 	"trajectoryObjFile" : "models/sphere.obj",
-	"planeObjFile" : "models/box.obj"
+	"boxObjFile" : "models/box.obj"
 }

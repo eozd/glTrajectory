@@ -138,6 +138,9 @@ class GLTrajectoryWidget(QOpenGLWidget):
         # enable Z-buffer
         glEnable(GL_DEPTH_TEST)
         glDepthFunc(GL_LESS)
+        # enable blending for transparency
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         # enable culling for better performance
         glDisable(GL_CULL_FACE)
         self.programID = loadShaders("shaders/vertex_shader.glsl", "shaders/fragment_shader.glsl")
@@ -146,9 +149,9 @@ class GLTrajectoryWidget(QOpenGLWidget):
             indexVBO(*loadOBJ(self.trajectoryObjFile)),
             self.ballDiffuseColor
         )
-        self.planeGLObject = GLObject(
-            indexVBO(*loadOBJ(self.planeObjFile)),
-            self.planeDiffuseColor
+        self.boxGLObject = GLObject(
+            indexVBO(*loadOBJ(self.boxObjFile)),
+            self.boxDiffuseColor
         )
         self.initUniforms(self.programID)
 
@@ -167,7 +170,7 @@ class GLTrajectoryWidget(QOpenGLWidget):
             # GLObjects.
             self.trajectoryGLObject.paint(M, V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
             M = scale(20, 10, 20)
-            self.planeGLObject.paint(M, V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
+            self.boxGLObject.paint(M, V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
         self.resetMouseInputs()
         self.dataIndices += 1
 
@@ -180,36 +183,55 @@ class GLTrajectoryWidget(QOpenGLWidget):
         with open(configFilepath, 'r') as f:
             configTXT = f.read()
             confDic = json.loads(configTXT)
+        # Frames per second
         self.FPS = confDic['FPS']
+        # x, y, z coordinates of light source in world coordinates
         self.lightPosWorld = np.array(confDic['lightPosWorld'], dtype='float32')
+        # color of light in r, g, b
         self.lightColor = np.array(confDic['lightColor'], dtype='float32')
+        # power of light source
         self.lightPower = confDic['lightPower']
+        # background color in r, g, b, a
         self.backgroundColor = confDic['backgroundColor']
+        # color of the ball in r, g, b, a
         self.ballDiffuseColor = np.array(
             confDic['ballDiffuseColor'],
             dtype='float32'
         )
-        self.planeDiffuseColor = np.array(
-            confDic['planeDiffuseColor'],
+        # color of the box in r, g, b, a
+        self.boxDiffuseColor = np.array(
+            confDic['boxDiffuseColor'],
             dtype='float32'
         )
+        # ambient color coefficients coeff_r, coeff_g, coeff_b.
+        # Multiplied with color to determine the power of ambient lighting
         self.materialAmbientColorCoeffs = np.array(
             confDic['materialAmbientColorCoeffs'],
             dtype='float32'
         )
+        # Specular color in r, g, b.
         self.materialSpecularColor = np.array(
             confDic['materialSpecularColor'],
             dtype='float32'
         )
+        # Initiali position of camera in x, y, z
         self.position = confDic['initialCameraPosition']
+        # Initial horizontal angle of camera in degrees
         self.horzAngle = np.radians(confDic['initialHorzAngle'])
+        # Initial vertical angle of camera in degrees
         self.vertAngle = np.radians(confDic['initialVertAngle'])
+        # Field of view
         self.fov = confDic['fov']
+        # Speed of camera
         self.speed = confDic['speed']
+        # Mouse speed (used to determine how fast user can chnage his view)
         self.mouseSpeed = confDic['mouseSpeed']
+        # Mouse wheel speed (used to elevate up/down)
         self.mouseWheelSpeed = confDic['mouseWheelSpeed']
+        # Obj file for ball model
         self.trajectoryObjFile = confDic['trajectoryObjFile']
-        self.planeObjFile = confDic['planeObjFile']
+        # Obj file for box model
+        self.boxObjFile = confDic['boxObjFile']
 
     def setConstUniform(self):
         """
