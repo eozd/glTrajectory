@@ -24,6 +24,7 @@ class GLObject():
     An OpenGL 'object' that has its own vertex data, and which can be drawn onto
     a QOpenGLWidget.
     """
+
     def __init__(self, modelName, color):
         """
         vertexData: GLVertexData object holding the vertex data of this GLObject.
@@ -106,6 +107,7 @@ class GLTrajectoryWidget(QOpenGLWidget):
     """
     # TODO: Create OpenGL object class (combination of vertices and methods, etc.)
     # to have multiple, independent objects in the same scene
+
     def __init__(self, width, height, data, configFilepath):
         """
         width: Width of the widget.
@@ -134,8 +136,7 @@ class GLTrajectoryWidget(QOpenGLWidget):
         self.time = QTime()
         self.time.start()
         self.data = data
-        self.circ_data = np.load('data/circular_movement.npy') + 20
-        self.dataIndices = np.arange(1)
+        self.dataIndices = np.arange(self.trailLength)
 
     def initializeGL(self):
         """
@@ -173,7 +174,9 @@ class GLTrajectoryWidget(QOpenGLWidget):
         Painting of each frame happens in this method.
         """
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        self.getMouseInputs()
         V, P = self.computeMVPFromInputs()
+        self.resetMouseInputs()
         glUseProgram(self.programID)
         self.setConstUniform()
         glUniformMatrix4fv(self.VID, 1, False, V)
@@ -182,11 +185,8 @@ class GLTrajectoryWidget(QOpenGLWidget):
             # TODO: Find a way to share required uniform IDs between all
             # GLObjects.
             self.trajectoryGLObject.paint(M, V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
-            M = translate(*(self.circ_data[i]))
-            self.t2.paint(M, V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
         M = mul(translate(0, 20, 0), scale(20, 10, 20))
         self.boxGLObject.paint(M, V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
-        self.resetMouseInputs()
         self.dataIndices = (self.dataIndices + 1)%len(self.data)
 
     def configure(self, configFilepath):
@@ -200,6 +200,8 @@ class GLTrajectoryWidget(QOpenGLWidget):
             confDic = json.loads(configTXT)
         # Frames per second
         self.FPS = confDic['FPS']
+        # Trail length. This many spheres are drawn per trail at each frame.
+        self.trailLength = confDic['trailLength']
         # x, y, z coordinates of light source in world coordinates
         self.lightPosWorld = np.array(confDic['lightPosWorld'], dtype='float32')
         # color of light in r, g, b
@@ -308,13 +310,6 @@ class GLTrajectoryWidget(QOpenGLWidget):
 
         Needs to be connected to a timer to be called in equal, small intervals.
         """
-        # need to manually grab mouse position since I couldn't synchronize qt
-        # mouse signals with openGL frames and we don't need qt signals for
-        # this task
-        if self.hasFocus():
-            pos = QCursor.pos()
-            self.inputs['mouseXDelta'] = pos.x() - self.width()/2
-            self.inputs['mouseYDelta'] = pos.y() - self.height()/2
         # TODO: merge elapsed with timer
         self.elapsed = self.time.elapsed()/1000
         self.time.restart()
@@ -323,6 +318,18 @@ class GLTrajectoryWidget(QOpenGLWidget):
     def mousePressEvent(self, event):
         self.setCursor(Qt.BlankCursor)
         self.lastPos = QCursor.pos()
+
+    def getMouseInputs(self):
+        """
+        Manually grabs mouse inputs.
+
+        Since we can get cursor information directly from QCursor class, we
+        don't need Qt signals and events for mouse inputs.
+        """
+        if self.hasFocus():
+            pos = QCursor.pos()
+            self.inputs['mouseXDelta'] = pos.x() - self.width()/2
+            self.inputs['mouseYDelta'] = pos.y() - self.height()/2
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
