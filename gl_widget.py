@@ -4,6 +4,7 @@ import json
 import numpy as np
 import ctypes
 import math
+import queue
 from PyQt5.QtGui import (QSurfaceFormat, QPainter, QCursor, QKeyEvent)
 from PyQt5.QtCore import (QTimer, QTime, Qt, QPoint)
 from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QOpenGLWidget, QWidget, QMainWindow)
@@ -14,6 +15,7 @@ from OpenGL.GLUT import *
 from matrix_utils import (mul, lookAt, perspective, translate, rotate, cross, scale)
 from loader import (loadOBJ, loadShaders, indexVBO)
 from definitions import GLVertexData
+from data_producer import DataProducerThread
 
 
 modelVertexDictionary = {}
@@ -108,18 +110,18 @@ class GLTrajectoryWidget(QOpenGLWidget):
     # TODO: Create OpenGL object class (combination of vertices and methods, etc.)
     # to have multiple, independent objects in the same scene
 
-    def __init__(self, width, height, data, configFilepath):
+    def __init__(self, width, height, dataQueue, configFilepath):
         """
         width: Width of the widget.
 
         height: Height of the widget.
 
-        data: Data of the trajectory. Must be an Nx3 numpy array where columns
-        are x, y, z coordinates.
+        dataQueue: Synchronized queue object that gives the data of the
+        trajectory. At each frame, all the points in the queue will be painted.
 
         configFilepath: Path to configuration file.
         """
-        super(QOpenGLWidget, self).__init__()
+        super().__init__()
         self.configure(configFilepath)
         self.setMinimumSize(width, height)
         self.setFocusPolicy(Qt.ClickFocus)
@@ -135,8 +137,8 @@ class GLTrajectoryWidget(QOpenGLWidget):
         self.elapsed = 0
         self.time = QTime()
         self.time.start()
-        self.data = data
-        self.dataIndices = np.arange(self.trailLength)
+        self.dataQueue = dataQueue
+        self.dataPoints = []
 
     def initializeGL(self):
         """
@@ -180,14 +182,14 @@ class GLTrajectoryWidget(QOpenGLWidget):
         glUseProgram(self.programID)
         self.setConstUniform()
         glUniformMatrix4fv(self.VID, 1, False, V)
-        for i in self.dataIndices:
-            M = translate(*(self.data[i]*10))
+        self.setDataPoints()
+        for pos in self.dataPoints:
+            M = mul(translate(*(pos*10)), scale(0.5, 0.5, 0.5))
             # TODO: Find a way to share required uniform IDs between all
             # GLObjects.
             self.trajectoryGLObject.paint(M, V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
         M = mul(translate(0, 20, 0), scale(20, 10, 20))
         self.boxGLObject.paint(M, V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
-        self.dataIndices = (self.dataIndices + 1)%len(self.data)
 
     def configure(self, configFilepath):
         """
@@ -259,6 +261,19 @@ class GLTrajectoryWidget(QOpenGLWidget):
         glUniform1f(self.lightPowerID, self.lightPower)
         glUniform3fv(self.materialAmbientColorCoeffsID, 1, self.materialAmbientColorCoeffs)
         glUniform3fv(self.materialSpecularColorID, 1, self.materialSpecularColor)
+
+    def setDataPoints(self):
+        """
+        Gets a single point from self.dataQueue and puts it into self.dataPoints.
+        If self.dataPoints contains less points self.trailLength, then no point
+        is removed from it. When it reaches self.trailLength, for each point
+        put into self.dataPoints a point is popped out of it in a FIFO fashion.
+        """
+        if not dataQueue.empty():
+            newPoint = self.dataQueue.get()
+            if len(self.dataPoints) == self.trailLength:
+                self.dataPoints.pop(0)
+            self.dataPoints.append(newPoint)
 
     def initUniforms(self, programID):
         """
@@ -428,10 +443,16 @@ if __name__ == '__main__':
     data = np.char.replace(data, ']', '')
     data = data.astype(float)
 
+    # create the synchronized queue
+    dataQueue = queue.Queue()
+    dataThread = DataProducerThread()
+    dataThread.setData(data, dataQueue)
+    dataThread.start()
+
     app = QApplication(sys.argv)
     window = QWidget()
     layout = QHBoxLayout()
-    layout.addWidget(GLTrajectoryWidget(1368, 768, data[:, 1:4], configFile))
+    layout.addWidget(GLTrajectoryWidget(1368, 768, dataQueue, configFile))
     window.setLayout(layout)
 
     window.show()
