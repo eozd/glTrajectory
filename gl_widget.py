@@ -271,9 +271,9 @@ class GLTrajectoryWidget(QOpenGLWidget):
         """
         if not dataQueue.empty():
             newPoint = self.dataQueue.get()
+            self.dataPoints.append(newPoint)
             if len(self.dataPoints) == self.trailLength:
                 self.dataPoints.pop(0)
-            self.dataPoints.append(newPoint)
 
     def initUniforms(self, programID):
         """
