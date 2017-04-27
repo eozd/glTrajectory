@@ -161,9 +161,9 @@ class GLTrajectoryWidget(QOpenGLWidget):
             'ball',
             self.ballDiffuseColor
         )
-        self.t2 = GLObject(
+        self.originGLObject = GLObject(
             'ball',
-            np.array([1.0, 0.0, 0.0, 1.0], dtype='float32')
+            self.originDiffuseColor
         )
         self.boxGLObject = GLObject(
             'box',
@@ -184,11 +184,17 @@ class GLTrajectoryWidget(QOpenGLWidget):
         glUniformMatrix4fv(self.VID, 1, False, V)
         self.setDataPoints()
         for pos in self.dataPoints:
-            M = mul(translate(*(pos*10)), scale(0.5, 0.5, 0.5))
-            # TODO: Find a way to share required uniform IDs between all
-            # GLObjects.
+            pos = np.roll(pos, 2)  # shift the coordinates for upwards height
+            M = mul(translate(*pos), scale(*self.ballXYZLength))
+            # TODO: Find a way to share required uniform IDs between all GLObjects.
             self.trajectoryGLObject.paint(M, V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
-        M = mul(translate(0, 20, 0), scale(20, 10, 20))
+        # draw the origin
+        M = mul(translate(0, 0, 0), scale(*self.ballXYZLength))
+        self.originGLObject.paint(M, V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
+        # draw the box
+        x, y, z = self.boxXYZLength
+        # rotate and translate the box so that its left bottom corner sits at origin
+        M = mul(translate(x, z, y), mul(rotate([1, 0, 0], 90), scale(*self.boxXYZLength)))
         self.boxGLObject.paint(M, V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
 
     def configure(self, configFilepath):
@@ -217,9 +223,24 @@ class GLTrajectoryWidget(QOpenGLWidget):
             confDic['ballDiffuseColor'],
             dtype='float32'
         )
+        # color of the origin
+        self.originDiffuseColor = np.array(
+            confDic['originDiffuseColor'],
+            dtype='float32'
+        )
+        # x, y, z edge lengths of the bounding box in meters
+        self.ballXYZLength = np.array(
+            confDic['ballXYZLength'],
+            dtype='float32'
+        )
         # color of the box in r, g, b, a
         self.boxDiffuseColor = np.array(
             confDic['boxDiffuseColor'],
+            dtype='float32'
+        )
+        # x, y, z axis lengths of the point ball in meters
+        self.boxXYZLength = np.array(
+            confDic['boxXYZLength'],
             dtype='float32'
         )
         # ambient color coefficients coeff_r, coeff_g, coeff_b.

@@ -40,12 +40,12 @@ def scale(cx, cy, cz):
     )
 
 
-def rotate(angle, axis):
+def rotate(axis, angle):
     """
     Creates a 4x4 counter-clockwise rotation matrix.
 
-    angle: Angle of rotation in degrees.
     axis: Rotation axis as a triple (any indexable structure).
+    angle: Angle of rotation in degrees.
     """
     rad = np.radians(angle)
     rcos = np.cos(rad)
