@@ -18,22 +18,31 @@ from definitions import GLVertexData
 from data_producer import DataProducerThread
 
 
-modelVertexDictionary = {}
-
-
 class GLObject():
     """
     An OpenGL 'object' that has its own vertex data, and which can be drawn onto
     a QOpenGLWidget.
     """
 
-    def __init__(self, modelName, color):
+    modelVertexDictionary = {}
+    """
+    Dictionary for storing vertex data with names as identifiers. Used by all
+    GLObjects.
+    """
+
+    MatrixID = None
+    MID = None
+    ColorID = None
+    """
+    Uniform IDs holding the corresponding data structures in the shader program.
+    """
+
+    def __init__(self, modelName):
         """
-        vertexData: GLVertexData object holding the vertex data of this GLObject.
+        modelName: Name of the GLVertexData model stored in modelVertexDictionary.
         color: <r, g, b, a> color of the object as a numpy array.
         """
         self.modelName = modelName
-        self.color = color
         self.initBuffers()
 
     def initBuffers(self):
@@ -41,7 +50,7 @@ class GLObject():
         Creates OpenGL buffers for storing vertex data.
         """
         glBindVertexArray(glGenVertexArrays(1))
-        vertexData = modelVertexDictionary[self.modelName]
+        vertexData = GLObject.modelVertexDictionary[self.modelName]
         # vertex array (positions)
         self.vertexBuffer = glGenBuffers(1)
         glBindBuffer(GL_ARRAY_BUFFER, self.vertexBuffer)
@@ -55,7 +64,7 @@ class GLObject():
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.elementBuffer)
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, vertexData.indices, GL_STATIC_DRAW)
 
-    def paint(self, M, V, P, matrixID, MID, colorID):
+    def paint(self, M, V, P, color):
         """
         Paint GLObject using the transformations given.
 
@@ -65,11 +74,11 @@ class GLObject():
         matrixID: Uniform ID of MVP matrix in the vertex shader.
         MID: Uniform ID of M matrix in the vertex shader.
         """
-        vertexData = modelVertexDictionary[self.modelName]
+        vertexData = GLObject.modelVertexDictionary[self.modelName]
         MVP = mul(P, mul(V, M))
-        glUniformMatrix4fv(matrixID, 1, False, MVP)
-        glUniformMatrix4fv(MID, 1, False, M)
-        glUniform4fv(colorID, 1, self.color)
+        glUniformMatrix4fv(GLObject.MatrixID, 1, False, MVP)
+        glUniformMatrix4fv(GLObject.MID, 1, False, M)
+        glUniform4fv(GLObject.ColorID, 1, color)
         # vertex attribute array
         glEnableVertexAttribArray(0)
         glBindBuffer(GL_ARRAY_BUFFER, self.vertexBuffer)
@@ -107,8 +116,6 @@ class GLTrajectoryWidget(QOpenGLWidget):
     """
     Animate a trajectory in 3D using OpenGL.
     """
-    # TODO: Create OpenGL object class (combination of vertices and methods, etc.)
-    # to have multiple, independent objects in the same scene
 
     def __init__(self, width, height, dataQueue, configFilepath):
         """
@@ -154,27 +161,11 @@ class GLTrajectoryWidget(QOpenGLWidget):
         # enable culling for better performance
         glEnable(GL_CULL_FACE)
         self.programID = loadShaders("shaders/vertex_shader.glsl", "shaders/fragment_shader.glsl")
-        # don't use texture for now
-        modelVertexDictionary['ball'] = indexVBO(*loadOBJ(self.trajectoryObjFile))
-        modelVertexDictionary['box'] = indexVBO(*loadOBJ(self.boxObjFile))
-        modelVertexDictionary['arrow'] = indexVBO(*loadOBJ(self.arrowObjFile))
-        self.trajectoryGLObject = GLObject(
-            'ball',
-            self.ballDiffuseColor
-        )
-        self.originGLObject = GLObject(
-            'ball',
-            self.originDiffuseColor
-        )
-        self.boxGLObject = GLObject(
-            'box',
-            self.boxDiffuseColor
-        )
-        self.arrowGLObject = GLObject(
-            'arrow',
-            self.ballDiffuseColor
-        )
-        self.initUniforms(self.programID)
+        self.initUniforms()
+        self.initGLObjectVariables()
+        self.ballGLObject = GLObject('ball')
+        self.boxGLObject = GLObject('box')
+        self.arrowGLObject = GLObject('arrow')
 
     def paintGL(self):
         """
@@ -188,20 +179,29 @@ class GLTrajectoryWidget(QOpenGLWidget):
         self.setConstUniform()
         glUniformMatrix4fv(self.VID, 1, False, V)
         self.setDataPoints()
-        self.arrowGLObject.paint(mul(translate(8, 8, 8), scale(0.5, 0.5, 0.5)), V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
+        self.arrowGLObject.paint(mul(translate(8, 8, 8), scale(0.5, 0.5, 0.5)), V, P, np.array([1, 0, 0, 1], dtype='float32'))
         for pos in self.dataPoints:
             pos = np.roll(pos, 2)  # shift the coordinates for upwards height
             M = mul(translate(*pos), scale(*self.ballXYZLength))
             # TODO: Find a way to share required uniform IDs between all GLObjects.
-            self.trajectoryGLObject.paint(M, V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
+            self.ballGLObject.paint(M, V, P, self.ballDiffuseColor)
         # draw the origin
         M = mul(translate(0, 0, 0), scale(*self.ballXYZLength))
-        self.originGLObject.paint(M, V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
-        # draw the box
+        self.ballGLObject.paint(M, V, P, self.originDiffuseColor)
+        # x axis
+        M = mul(translate(0, 0, 1), scale(.05, .05, 1))
+        self.boxGLObject.paint(M, V, P, self.xAxisColor)
+        # y axis
+        M = mul(translate(1, 0, 0), scale(1, .05, .05))
+        self.boxGLObject.paint(M, V, P, self.yAxisColor)
+        # z axis
+        M = mul(translate(0, 1, 0), scale(.05, 1, .05))
+        self.boxGLObject.paint(M, V, P, self.zAxisColor)
+        # bounding box
         x, y, z = self.boxXYZLength
         # rotate and translate the box so that its left bottom corner sits at origin
         M = mul(translate(x, z, y), mul(rotate([1, 0, 0], 90), scale(*self.boxXYZLength)))
-        self.boxGLObject.paint(M, V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
+        self.boxGLObject.paint(M, V, P, self.boxDiffuseColor)
 
     def configure(self, configFilepath):
         """
@@ -232,6 +232,21 @@ class GLTrajectoryWidget(QOpenGLWidget):
         # color of the origin
         self.originDiffuseColor = np.array(
             confDic['originDiffuseColor'],
+            dtype='float32'
+        )
+        # color of x axis
+        self.xAxisColor = np.array(
+            confDic['xAxisColor'],
+            dtype='float32'
+        )
+        # color of y axis
+        self.yAxisColor = np.array(
+            confDic['yAxisColor'],
+            dtype='float32'
+        )
+        # color of z axis
+        self.zAxisColor = np.array(
+            confDic['zAxisColor'],
             dtype='float32'
         )
         # x, y, z edge lengths of the bounding box in meters
@@ -304,21 +319,30 @@ class GLTrajectoryWidget(QOpenGLWidget):
             if len(self.dataPoints) == self.trailLength:
                 self.dataPoints.pop(0)
 
-    def initUniforms(self, programID):
+    def initUniforms(self):
         """
         Creates locations for uniform variables used in the shader program.
 
         programID: Shader program ID.
         """
-        self.matrixID = glGetUniformLocation(programID, "MVP")
-        self.MID = glGetUniformLocation(programID, "M")
-        self.VID = glGetUniformLocation(programID, "V")
-        self.lightPosWorldID = glGetUniformLocation(programID, "LightPosition_worldspace")
-        self.lightColorID = glGetUniformLocation(programID, "LightColor")
-        self.lightPowerID = glGetUniformLocation(programID, "LightPower")
-        self.materialDiffuseColorID = glGetUniformLocation(programID, "MaterialDiffuseColor")
-        self.materialAmbientColorCoeffsID = glGetUniformLocation(programID, "MaterialAmbientColorCoeffs")
-        self.materialSpecularColorID = glGetUniformLocation(programID, "MaterialSpecularColor")
+        self.VID = glGetUniformLocation(self.programID, "V")
+        self.lightPosWorldID = glGetUniformLocation(self.programID, "LightPosition_worldspace")
+        self.lightColorID = glGetUniformLocation(self.programID, "LightColor")
+        self.lightPowerID = glGetUniformLocation(self.programID, "LightPower")
+        self.materialAmbientColorCoeffsID = glGetUniformLocation(self.programID, "MaterialAmbientColorCoeffs")
+        self.materialSpecularColorID = glGetUniformLocation(self.programID, "MaterialSpecularColor")
+
+    def initGLObjectVariables(self):
+        """
+        Iniatializes GLObject class variables and makes the class ready for
+        drawing.
+        """
+        GLObject.MatrixID = glGetUniformLocation(self.programID, "MVP")
+        GLObject.MID = glGetUniformLocation(self.programID, "M")
+        GLObject.ColorID = glGetUniformLocation(self.programID, "MaterialDiffuseColor")
+        GLObject.modelVertexDictionary['ball'] = indexVBO(*loadOBJ(self.trajectoryObjFile))
+        GLObject.modelVertexDictionary['box'] = indexVBO(*loadOBJ(self.boxObjFile))
+        GLObject.modelVertexDictionary['arrow'] = indexVBO(*loadOBJ(self.arrowObjFile))
 
     def resetInputs(self):
         """
