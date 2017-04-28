@@ -188,7 +188,7 @@ class GLTrajectoryWidget(QOpenGLWidget):
         self.setConstUniform()
         glUniformMatrix4fv(self.VID, 1, False, V)
         self.setDataPoints()
-        self.arrowGLObject.paint(scale(0.1, 0.1, 0.1), V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
+        self.arrowGLObject.paint(mul(translate(8, 8, 8), scale(0.5, 0.5, 0.5)), V, P, self.matrixID, self.MID, self.materialDiffuseColorID)
         for pos in self.dataPoints:
             pos = np.roll(pos, 2)  # shift the coordinates for upwards height
             M = mul(translate(*pos), scale(*self.ballXYZLength))
@@ -360,8 +360,9 @@ class GLTrajectoryWidget(QOpenGLWidget):
         self.update()
 
     def mousePressEvent(self, event):
-        self.setCursor(Qt.BlankCursor)
         self.lastPos = QCursor.pos()
+        self.setCursor(Qt.BlankCursor)
+        self.resetMouseInputs()
 
     def getMouseInputs(self):
         """
