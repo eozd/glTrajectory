@@ -22,7 +22,7 @@
 	"speed" : 20,
 	"mouseSpeed" : 0.3,
 	"mouseWheelSpeed" : 5,
-	"trajectoryObjFile" : "models/sphere.obj",
+	"ballObjFile" : "models/sphere.obj",
 	"boxObjFile" : "models/box.obj",
 	"arrowObjFile" : "models/arrow.obj"
 }

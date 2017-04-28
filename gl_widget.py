@@ -64,6 +64,22 @@ class GLObject():
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.elementBuffer)
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, vertexData.indices, GL_STATIC_DRAW)
 
+    def initUniforms(programID):
+        """
+        Initializes uniforms in the shader program to be used by painting
+        functions of GLObject.
+        """
+        GLObject.MatrixID = glGetUniformLocation(programID, "MVP")
+        GLObject.MID = glGetUniformLocation(programID, "M")
+        GLObject.ColorID = glGetUniformLocation(programID, "MaterialDiffuseColor")
+
+    def initModelVertexDic(namePathDic):
+        """
+        Initializes GLObject.modelVertexDictionary.
+        """
+        for name, path in namePathDic.items():
+            GLObject.modelVertexDictionary[name] = indexVBO(*loadOBJ(path))
+
     def paint(self, M, V, P, color):
         """
         Paint GLObject using the transformations given.
@@ -161,8 +177,15 @@ class GLTrajectoryWidget(QOpenGLWidget):
         # enable culling for better performance
         glEnable(GL_CULL_FACE)
         self.programID = loadShaders("shaders/vertex_shader.glsl", "shaders/fragment_shader.glsl")
-        self.initUniforms()
-        self.initGLObjectVariables()
+        self.initUniforms(self.programID)
+        GLObject.initUniforms(self.programID)
+        GLObject.initModelVertexDic(
+            {
+                'box'   : self.boxObjFile,
+                'ball'  : self.ballObjFile,
+                'arrow' : self.arrowObjFile
+            }
+        )
         self.ballGLObject = GLObject('ball')
         self.boxGLObject = GLObject('box')
         self.arrowGLObject = GLObject('arrow')
@@ -290,7 +313,7 @@ class GLTrajectoryWidget(QOpenGLWidget):
         # Mouse wheel speed (used to elevate up/down)
         self.mouseWheelSpeed = confDic['mouseWheelSpeed']
         # Obj file for ball model
-        self.trajectoryObjFile = confDic['trajectoryObjFile']
+        self.ballObjFile = confDic['ballObjFile']
         # Obj file for box model
         self.boxObjFile = confDic['boxObjFile']
         # Obj file for arrow model
@@ -319,7 +342,7 @@ class GLTrajectoryWidget(QOpenGLWidget):
             if len(self.dataPoints) == self.trailLength:
                 self.dataPoints.pop(0)
 
-    def initUniforms(self):
+    def initUniforms(self, programID):
         """
         Creates locations for uniform variables used in the shader program.
 
@@ -331,18 +354,6 @@ class GLTrajectoryWidget(QOpenGLWidget):
         self.lightPowerID = glGetUniformLocation(self.programID, "LightPower")
         self.materialAmbientColorCoeffsID = glGetUniformLocation(self.programID, "MaterialAmbientColorCoeffs")
         self.materialSpecularColorID = glGetUniformLocation(self.programID, "MaterialSpecularColor")
-
-    def initGLObjectVariables(self):
-        """
-        Iniatializes GLObject class variables and makes the class ready for
-        drawing.
-        """
-        GLObject.MatrixID = glGetUniformLocation(self.programID, "MVP")
-        GLObject.MID = glGetUniformLocation(self.programID, "M")
-        GLObject.ColorID = glGetUniformLocation(self.programID, "MaterialDiffuseColor")
-        GLObject.modelVertexDictionary['ball'] = indexVBO(*loadOBJ(self.trajectoryObjFile))
-        GLObject.modelVertexDictionary['box'] = indexVBO(*loadOBJ(self.boxObjFile))
-        GLObject.modelVertexDictionary['arrow'] = indexVBO(*loadOBJ(self.arrowObjFile))
 
     def resetInputs(self):
         """
