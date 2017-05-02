@@ -202,11 +202,11 @@ class GLTrajectoryWidget(QOpenGLWidget):
         self.setConstUniform()
         glUniformMatrix4fv(self.VID, 1, False, V)
         self.setDataPoints()
-        self.arrowGLObject.paint(mul(translate(8, 8, 8), scale(0.5, 0.5, 0.5)), V, P, np.array([1, 0, 0, 1], dtype='float32'))
         for pos in self.dataPoints:
-            pos = np.roll(pos, 2)  # shift the coordinates for upwards height
+            # all the x,y,z coords are shifted to right by 2 for upwards height
+            # and better visualization.
+            pos = np.roll(pos, 2)
             M = mul(translate(*pos), scale(*self.ballXYZLength))
-            # TODO: Find a way to share required uniform IDs between all GLObjects.
             self.ballGLObject.paint(M, V, P, self.ballDiffuseColor)
         # draw the origin
         M = mul(translate(0, 0, 0), scale(*self.ballXYZLength))
