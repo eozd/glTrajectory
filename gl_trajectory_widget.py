@@ -1,131 +1,15 @@
-import sys
-import argparse
-import json
-import numpy as np
-import ctypes
-import math
-import queue
-from PyQt5.QtGui import (QSurfaceFormat, QPainter, QCursor, QKeyEvent)
+from PyQt5.QtWidgets import QOpenGLWidget
 from PyQt5.QtCore import (QTimer, QTime, Qt, QPoint)
-from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QOpenGLWidget, QWidget, QMainWindow)
+from PyQt5.QtGui import QCursor
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
+import json
+import numpy as np
 
-from matrix_utils import (mul, lookAt, perspective, translate, rotate, cross, scale)
-from loader import (loadOBJ, loadShaders, indexVBO)
-from definitions import GLVertexData
-from data_producer import DataProducerThread
-
-
-class GLObject():
-    """
-    An OpenGL 'object' that has its own vertex data, and which can be drawn onto
-    a QOpenGLWidget.
-    """
-
-    modelVertexDictionary = {}
-    """
-    Dictionary for storing vertex data with names as identifiers. Used by all
-    GLObjects.
-    """
-
-    MatrixID = None
-    MID = None
-    ColorID = None
-    """
-    Uniform IDs holding the corresponding data structures in the shader program.
-    """
-
-    def __init__(self, modelName):
-        """
-        modelName: Name of the GLVertexData model stored in modelVertexDictionary.
-        color: <r, g, b, a> color of the object as a numpy array.
-        """
-        self.modelName = modelName
-        self.initBuffers()
-
-    def initBuffers(self):
-        """
-        Creates OpenGL buffers for storing vertex data.
-        """
-        glBindVertexArray(glGenVertexArrays(1))
-        vertexData = GLObject.modelVertexDictionary[self.modelName]
-        # vertex array (positions)
-        self.vertexBuffer = glGenBuffers(1)
-        glBindBuffer(GL_ARRAY_BUFFER, self.vertexBuffer)
-        glBufferData(GL_ARRAY_BUFFER, vertexData.vertices, GL_STATIC_DRAW)
-        # normal array (normal vector of each triangle)
-        self.normalBuffer = glGenBuffers(1)
-        glBindBuffer(GL_ARRAY_BUFFER, self.normalBuffer)
-        glBufferData(GL_ARRAY_BUFFER, vertexData.normals, GL_STATIC_DRAW)
-        # index array (to be used for VBO indexing)
-        self.elementBuffer = glGenBuffers(1)
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.elementBuffer)
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, vertexData.indices, GL_STATIC_DRAW)
-
-    def initUniforms(programID):
-        """
-        Initializes uniforms in the shader program to be used by painting
-        functions of GLObject.
-        """
-        GLObject.MatrixID = glGetUniformLocation(programID, "MVP")
-        GLObject.MID = glGetUniformLocation(programID, "M")
-        GLObject.ColorID = glGetUniformLocation(programID, "MaterialDiffuseColor")
-
-    def initModelVertexDic(namePathDic):
-        """
-        Initializes GLObject.modelVertexDictionary.
-        """
-        for name, path in namePathDic.items():
-            GLObject.modelVertexDictionary[name] = indexVBO(*loadOBJ(path))
-
-    def paint(self, M, V, P, color):
-        """
-        Paint GLObject using the transformations given.
-
-        M: Model matrix.
-        V: View matrix.
-        P: Projection matrix.
-        matrixID: Uniform ID of MVP matrix in the vertex shader.
-        MID: Uniform ID of M matrix in the vertex shader.
-        """
-        vertexData = GLObject.modelVertexDictionary[self.modelName]
-        MVP = mul(P, mul(V, M))
-        glUniformMatrix4fv(GLObject.MatrixID, 1, False, MVP)
-        glUniformMatrix4fv(GLObject.MID, 1, False, M)
-        glUniform4fv(GLObject.ColorID, 1, color)
-        # vertex attribute array
-        glEnableVertexAttribArray(0)
-        glBindBuffer(GL_ARRAY_BUFFER, self.vertexBuffer)
-        glVertexAttribPointer(
-            0,                   # must match the layout id in the shader
-            3,                   # size
-            GL_FLOAT,            # data type
-            GL_FALSE,            # normalized?
-            0,                   # stride. offset in between
-            ctypes.c_void_p(0),  # offset to the beginning
-        )
-        # normal coordinates attribute array
-        glEnableVertexAttribArray(1)
-        glBindBuffer(GL_ARRAY_BUFFER, self.normalBuffer)
-        glVertexAttribPointer(
-            1,
-            3,
-            GL_FLOAT,
-            GL_FALSE,
-            0,
-            ctypes.c_void_p(0),
-        )
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.elementBuffer)
-        glDrawElements(
-            GL_TRIANGLES,
-            len(vertexData.indices),
-            GL_UNSIGNED_SHORT,
-            ctypes.c_void_p(0),
-        )
-        glDisableVertexAttribArray(0)
-        glDisableVertexAttribArray(1)
+from gl_object import GLObject
+import loader
+import matrix_utils as mu
 
 
 class GLTrajectoryWidget(QOpenGLWidget):
@@ -176,7 +60,7 @@ class GLTrajectoryWidget(QOpenGLWidget):
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         # enable culling for better performance
         glEnable(GL_CULL_FACE)
-        self.programID = loadShaders("shaders/vertex_shader.glsl", "shaders/fragment_shader.glsl")
+        self.programID = loader.loadShaders("shaders/vertex_shader.glsl", "shaders/fragment_shader.glsl")
         self.initUniforms(self.programID)
         GLObject.initUniforms(self.programID)
         GLObject.initModelVertexDic(
@@ -206,24 +90,24 @@ class GLTrajectoryWidget(QOpenGLWidget):
             # all the x,y,z coords are shifted to right by 2 for upwards height
             # and better visualization.
             pos = np.roll(pos, 2)
-            M = mul(translate(*pos), scale(*self.ballXYZLength))
+            M = mu.mul(mu.translate(*pos), mu.scale(*self.ballXYZLength))
             self.ballGLObject.paint(M, V, P, self.ballDiffuseColor)
         # draw the origin
-        M = mul(translate(0, 0, 0), scale(*self.ballXYZLength))
+        M = mu.mul(mu.translate(0, 0, 0), mu.scale(*self.ballXYZLength))
         self.ballGLObject.paint(M, V, P, self.originDiffuseColor)
         # x axis
-        M = mul(translate(0, 0, 1), scale(.05, .05, 1))
+        M = mu.mul(mu.translate(0, 0, 1), mu.scale(.05, .05, 1))
         self.boxGLObject.paint(M, V, P, self.xAxisColor)
         # y axis
-        M = mul(translate(1, 0, 0), scale(1, .05, .05))
+        M = mu.mul(mu.translate(1, 0, 0), mu.scale(1, .05, .05))
         self.boxGLObject.paint(M, V, P, self.yAxisColor)
         # z axis
-        M = mul(translate(0, 1, 0), scale(.05, 1, .05))
+        M = mu.mul(mu.translate(0, 1, 0), mu.scale(.05, 1, .05))
         self.boxGLObject.paint(M, V, P, self.zAxisColor)
         # bounding box
         x, y, z = self.boxXYZLength
         # rotate and translate the box so that its left bottom corner sits at origin
-        M = mul(translate(x, z, y), mul(rotate([1, 0, 0], 90), scale(*self.boxXYZLength)))
+        M = mu.mul(mu.translate(x, z, y), mu.mul(mu.rotate([1, 0, 0], 90), mu.scale(*self.boxXYZLength)))
         self.boxGLObject.paint(M, V, P, self.boxDiffuseColor)
 
     def configure(self, configFilepath):
@@ -336,7 +220,7 @@ class GLTrajectoryWidget(QOpenGLWidget):
         is removed from it. When it reaches self.trailLength, for each point
         put into self.dataPoints a point is popped out of it in a FIFO fashion.
         """
-        if not dataQueue.empty():
+        if not self.dataQueue.empty():
             newPoint = self.dataQueue.get()
             self.dataPoints.append(newPoint)
             if len(self.dataPoints) == self.trailLength:
@@ -456,7 +340,7 @@ class GLTrajectoryWidget(QOpenGLWidget):
             0,
             np.cos(self.horzAngle - np.pi/2),
         ])
-        up = cross(right, direction)
+        up = mu.cross(right, direction)
         if self.inputs['up']:
             self.position += direction*deltaTime*self.speed
         if self.inputs['down']:
@@ -466,59 +350,15 @@ class GLTrajectoryWidget(QOpenGLWidget):
         if self.inputs['left']:
             self.position -= right*deltaTime*self.speed
         self.position += up*deltaTime*self.speed*self.inputs['wheelDelta']
-        projection = perspective(
+        projection = mu.perspective(
             self.fov,                    # fov
             self.width()/self.height(),  # aspect ratio
             0.1,                         # distance to near clipping plane
             200,                         # distance to far clipping plane
         )
-        view = lookAt(
+        view = mu.lookAt(
             self.position,               # camera position in world coordinates
             self.position + direction,   # where the camera looks at in world coordinates
             up,                          # up vector for camera. Used for orientation
         )
         return view, projection
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Animate trajectory using GLTrajectoryWidget.")
-    requiredNamed = parser.add_argument_group('Required arguments')
-    requiredNamed.add_argument('-c', metavar='config_file', help="Configuration file path", required=True)
-    requiredNamed.add_argument('-d', metavar='data_file', help="Data file path", required=True)
-    if len(sys.argv) == 1:
-        parser.print_help()
-        sys.exit(-1)
-    args = parser.parse_args()
-    dataFile = args.d
-    configFile = args.c
-
-    fmt = QSurfaceFormat()
-    fmt.setProfile(QSurfaceFormat.CoreProfile)
-    fmt.setMajorVersion(3)
-    fmt.setMinorVersion(3)
-    fmt.setRenderableType(QSurfaceFormat.OpenGL)
-    fmt.setDepthBufferSize(24)
-    fmt.setAlphaBufferSize(24)
-    fmt.setSamples(4)
-    QSurfaceFormat.setDefaultFormat(fmt)
-
-    # read data file
-    data = np.genfromtxt(dataFile, delimiter=',', dtype=str)
-    data = np.char.replace(data, '[', '')
-    data = np.char.replace(data, ']', '')
-    data = data.astype(float)
-
-    # create the synchronized queue
-    dataQueue = queue.Queue()
-    dataThread = DataProducerThread()
-    dataThread.setData(data, dataQueue)
-    dataThread.start()
-
-    app = QApplication(sys.argv)
-    window = QWidget()
-    layout = QHBoxLayout()
-    layout.addWidget(GLTrajectoryWidget(1368, 768, dataQueue, configFile))
-    window.setLayout(layout)
-
-    window.show()
-    sys.exit(app.exec_())

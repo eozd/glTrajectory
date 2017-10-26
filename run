@@ -1,1 +1,1 @@
-python gl_widget.py -c conf/config_glwidget.json -d data/kalman_coordinates.csv
+python main.py -c conf/config_glwidget.json -d data/kalman_coordinates.csv
