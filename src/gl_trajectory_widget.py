@@ -46,6 +46,8 @@ class GLTrajectoryWidget(QOpenGLWidget):
         self.time.start()
         self.dataQueue = dataQueue
         self.dataPoints = []
+        self.paintCounter = 0
+        self.totalElapsedTime = 0
 
     def initializeGL(self):
         """
@@ -121,6 +123,8 @@ class GLTrajectoryWidget(QOpenGLWidget):
             confDic = json.loads(configTXT)
         # Frames per second
         self.FPS = confDic['FPS']
+        # print FPS?
+        self.fpsCounter = confDic['fpsCounter']
         # Trail length. This many spheres are drawn per trail at each frame.
         self.trailLength = confDic['trailLength']
         # x, y, z coordinates of light source in world coordinates
@@ -275,6 +279,15 @@ class GLTrajectoryWidget(QOpenGLWidget):
         """
         # TODO: merge elapsed with timer
         self.elapsed = self.time.elapsed()/1000
+
+        if self.fpsCounter:
+            self.totalElapsedTime += self.elapsed
+            self.paintCounter += 1
+            if self.totalElapsedTime >= 1:
+                print('FPS : {:2d}'.format(self.paintCounter), file=sys.stderr)
+                self.totalElapsedTime = 0
+                self.paintCounter = 0
+
         self.time.restart()
         self.update()
 

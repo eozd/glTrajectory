@@ -42,6 +42,7 @@ if __name__ == '__main__':
     dataQueue = queue.Queue()
     dataThread = data_producer.DataProducerThread()
     dataThread.setData(data, dataQueue)
+    dataThread.setDaemon(True)
     dataThread.start()
 
     app = QApplication(sys.argv)
