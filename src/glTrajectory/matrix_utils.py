@@ -18,7 +18,7 @@ def reverse_mul(A, B):
 
 def translate(dx, dy, dz):
     """
-    Creates a 4x4 translation matrix which when reverse multiplied with a vector,
+    Creates a 4x4 translation matrix which when multiplied with a vector,
     changes the x, y, z coordinates by dx, dy, dz, respectively.
     """
     mat = np.eye(4, dtype='float32')
@@ -28,7 +28,7 @@ def translate(dx, dy, dz):
 
 def scale(cx, cy, cz):
     """
-    Creates a 4x4 scale matrix which when reverse multiplied with a vector, scales
+    Creates a 4x4 scale matrix which when multiplied with a vector, scales
     the x, y, z coordinates by cx, cy, cz, respectively.
     """
     return np.array(

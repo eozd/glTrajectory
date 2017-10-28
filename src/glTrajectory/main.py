@@ -10,7 +10,6 @@ from gl_trajectory_widget import GLTrajectoryWidget
 
 
 if __name__ == '__main__':
-    sys.path.insert(0, '..')
     parser = argparse.ArgumentParser(description="Animate trajectory using GLTrajectoryWidget.")
     requiredNamed = parser.add_argument_group('Required arguments')
     requiredNamed.add_argument('-c', metavar='config_file', help="Configuration file path", required=True)

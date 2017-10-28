@@ -80,7 +80,7 @@ class GLObject():
         MID: Uniform ID of M matrix in the vertex shader.
         """
         vertexData = GLObject.modelVertexDictionary[self.modelName]
-        MVP = mu.mul(P, mu.mul(V, M))
+        MVP = mu.reverse_mul(P, mu.reverse_mul(V, M))
         glUniformMatrix4fv(GLObject.MatrixID, 1, False, MVP)
         glUniformMatrix4fv(GLObject.MID, 1, False, M)
         glUniform4fv(GLObject.ColorID, 1, color)

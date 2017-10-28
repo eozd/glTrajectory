@@ -92,24 +92,24 @@ class GLTrajectoryWidget(QOpenGLWidget):
             # all the x,y,z coords are shifted to right by 2 for upwards height
             # and better visualization.
             pos = np.roll(pos, 2)
-            M = mu.mul(mu.translate(*pos), mu.scale(*self.ballXYZLength))
+            M = mu.reverse_mul(mu.translate(*pos), mu.scale(*self.ballXYZLength))
             self.ballGLObject.paint(M, V, P, self.ballDiffuseColor)
         # draw the origin
-        M = mu.mul(mu.translate(0, 0, 0), mu.scale(*self.ballXYZLength))
+        M = mu.reverse_mul(mu.translate(0, 0, 0), mu.scale(*self.ballXYZLength))
         self.ballGLObject.paint(M, V, P, self.originDiffuseColor)
         # x axis
-        M = mu.mul(mu.translate(0, 0, 1), mu.scale(.05, .05, 1))
+        M = mu.reverse_mul(mu.translate(0, 0, 1), mu.scale(.05, .05, 1))
         self.boxGLObject.paint(M, V, P, self.xAxisColor)
         # y axis
-        M = mu.mul(mu.translate(1, 0, 0), mu.scale(1, .05, .05))
+        M = mu.reverse_mul(mu.translate(1, 0, 0), mu.scale(1, .05, .05))
         self.boxGLObject.paint(M, V, P, self.yAxisColor)
         # z axis
-        M = mu.mul(mu.translate(0, 1, 0), mu.scale(.05, 1, .05))
+        M = mu.reverse_mul(mu.translate(0, 1, 0), mu.scale(.05, 1, .05))
         self.boxGLObject.paint(M, V, P, self.zAxisColor)
         # bounding box
         x, y, z = self.boxXYZLength
         # rotate and translate the box so that its left bottom corner sits at origin
-        M = mu.mul(mu.translate(x, z, y), mu.mul(mu.rotate([1, 0, 0], 90), mu.scale(*self.boxXYZLength)))
+        M = mu.reverse_mul(mu.translate(x, z, y), mu.reverse_mul(mu.rotate([1, 0, 0], 90), mu.scale(*self.boxXYZLength)))
         self.boxGLObject.paint(M, V, P, self.boxDiffuseColor)
 
     def configure(self, configFilepath):
