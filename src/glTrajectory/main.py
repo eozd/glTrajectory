@@ -27,7 +27,7 @@ if __name__ == '__main__':
     fmt.setMinorVersion(3)
     fmt.setRenderableType(QSurfaceFormat.OpenGL)
     fmt.setDepthBufferSize(24)
-    fmt.setAlphaBufferSize(24)
+    fmt.setAlphaBufferSize(8)
     fmt.setSamples(4)
     QSurfaceFormat.setDefaultFormat(fmt)
 
