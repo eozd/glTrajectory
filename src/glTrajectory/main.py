@@ -6,6 +6,7 @@ import numpy as np
 import queue
 
 import data_producer
+import motion
 from gl_trajectory_widget import GLTrajectoryWidget
 
 
@@ -13,12 +14,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Animate trajectory using GLTrajectoryWidget.")
     requiredNamed = parser.add_argument_group('Required arguments')
     requiredNamed.add_argument('-c', metavar='config_file', help="Configuration file path", required=True)
-    requiredNamed.add_argument('-d', metavar='data_file', help="Data file path", required=True)
     if len(sys.argv) == 1:
         parser.print_help()
         sys.exit(-1)
     args = parser.parse_args()
-    dataFile = args.d
     configFile = args.c
 
     fmt = QSurfaceFormat()
@@ -31,16 +30,9 @@ if __name__ == '__main__':
     fmt.setSamples(4)
     QSurfaceFormat.setDefaultFormat(fmt)
 
-    # read data file
-    data = np.genfromtxt(dataFile, delimiter=',', dtype=str)
-    data = np.char.replace(data, '[', '')
-    data = np.char.replace(data, ']', '')
-    data = data.astype(float)
-
     # create the synchronized queue
     dataQueue = queue.Queue()
-    dataThread = data_producer.DataProducerThread()
-    dataThread.setData(data, dataQueue)
+    dataThread = data_producer.DataProducerThread(motion.circular_motion, dataQueue, 0.1)
     dataThread.setDaemon(True)
     dataThread.start()
 

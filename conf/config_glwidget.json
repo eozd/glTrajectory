@@ -1,7 +1,7 @@
 {
 	"FPS" : 60,
 	"fpsCounter" : true,
-	"trailLength" : 50,
+	"trailLength" : 25,
 	"lightPosWorld" : [-10, 15, -15],
 	"lightColor" : [1.0, 1.0, 1.0],
 	"lightPower" : 300.0,

@@ -1,7 +1,0 @@
-if [[ $1 == "-h" ]]; then
-	params="-h"
-else
-	params="-c conf/config_glwidget.json -d data/kalman_coordinates.csv"
-fi
-
-python src/glTrajectory/main.py $params
